@@ -202,7 +202,7 @@ const ProductSchema: Schema = new Schema<IProduct>(
 // Index for better search performance
 ProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
 ProductSchema.index({ category: 1, isActive: 1, isFeatured: 1 });
-ProductSchema.index({ sku: 1 });
+// ProductSchema.index({ sku: 1 });
 
 const Product: Model<IProduct> = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema);
 

@@ -1,4 +1,4 @@
-// pages/api/cart/add.ts
+// /api/cart/route.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import Cart from '../../../models/Cart';
 

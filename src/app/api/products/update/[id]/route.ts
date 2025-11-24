@@ -7,6 +7,8 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
 
+// /api/products/update/[id]
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

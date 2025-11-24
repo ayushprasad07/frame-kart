@@ -1,4 +1,4 @@
-// pages/api/products/categories/route.ts
+// /api/categories/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Product from '@/models/Product';

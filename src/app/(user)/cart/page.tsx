@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
+// import Header from '@/components/Header';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 
@@ -55,8 +55,8 @@ export default function CartPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <div className="min-h-screen bg-gray-50 mt-16">
+        {/* <Header /> */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
@@ -74,10 +74,10 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className="min-h-screen bg-gray-50 ">
+      {/* <Header /> */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 pt-5">Shopping Cart</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
