@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-// import Header from '@/components/Header';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 
@@ -16,6 +15,19 @@ export default function CartPage() {
   });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Helper function to get correct image path
+  const getImagePath = (image: string | undefined) => {
+    if (!image) return '/placeholder-image.png';
+    
+    // If image already has full path or URL, use it as is
+    if (image.startsWith('http') || image.startsWith('/')) {
+      return image;
+    }
+    
+    // Otherwise, assume it's a filename and prepend the uploads path
+    return `/uploads/products/${image}`;
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +68,6 @@ export default function CartPage() {
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 mt-16">
-        {/* <Header /> */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
@@ -74,8 +85,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 ">
-      {/* <Header /> */}
+    <div className="min-h-screen bg-gray-50">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="text-3xl font-bold text-gray-900 mb-8 pt-5">Shopping Cart</h1>
 
@@ -87,16 +97,21 @@ export default function CartPage() {
                 key={item.productId}
                 className="bg-white rounded-lg shadow-md p-6 flex flex-col sm:flex-row gap-4"
               >
-                {item.image && (
-                  <div className="relative w-full sm:w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={`/uploads/products/${item.image}`}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                )}
+                {/* Image with proper path handling */}
+                <div className="relative w-full sm:w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <Image
+                    src={getImagePath(item.image)}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 128px"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      console.error('Image failed to load:', getImagePath(item.image));
+                      e.currentTarget.src = '/placeholder-image.png';
+                    }}
+                  />
+                </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-gray-600 mb-4">₹{item.price.toLocaleString()}</p>
@@ -105,10 +120,11 @@ export default function CartPage() {
                       <button
                         onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                         className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300"
+                        disabled={item.quantity <= 1}
                       >
                         -
                       </button>
-                      <span className="font-semibold">{item.quantity}</span>
+                      <span className="font-semibold min-w-8 text-center">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.productId, item.quantity + 1)}
                         className="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300"
@@ -235,4 +251,3 @@ export default function CartPage() {
     </div>
   );
 }
-

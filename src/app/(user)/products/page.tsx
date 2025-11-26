@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Product {
   _id: string;
@@ -38,6 +39,7 @@ export default function ProductsPage() {
     sort: 'newest',
   });
   const [categories, setCategories] = useState<string[]>([]);
+  const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     fetchProducts();
@@ -65,6 +67,13 @@ export default function ProductsPage() {
       }));
 
       setProducts(normalizedProducts);
+      
+      // Initialize image indexes for carousel
+      const initialIndexes: { [key: string]: number } = {};
+      normalizedProducts.forEach((product: Product) => {
+        initialIndexes[product._id] = 0;
+      });
+      setCurrentImageIndexes(initialIndexes);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -85,19 +94,21 @@ export default function ProductsPage() {
     }
   };
 
-  const getProductImage = (product: Product): string => {
+  const getProductImage = (product: Product, imageIndex: number = 0): string => {
+    // Use images array for carousel if available
+    if (product.images && product.images.length > 0) {
+      const image = product.images[imageIndex];
+      return image.startsWith('http') || image.startsWith('/')
+        ? image
+        : `/uploads/products/${image}`;
+    }
+    // Fallback to featuredImage
     if (product.featuredImage) {
       return product.featuredImage.startsWith('http') || product.featuredImage.startsWith('/')
         ? product.featuredImage
         : `/uploads/products/${product.featuredImage}`;
     }
-    if (product.images && product.images.length > 0) {
-      const image = product.images[0];
-      return image.startsWith('http') || image.startsWith('/')
-        ? image 
-        : `/uploads/products/${image}`;
-    }
-    return '/placeholder-image.png'; // fallback placeholder
+    return '/placeholder-image.png';
   };
 
   const hasValidOffer = (product: Product): boolean => {
@@ -108,6 +119,33 @@ export default function ProductsPage() {
       product.basePrice !== null &&
       product.offerPrice < product.basePrice
     );
+  };
+
+  const getDisplayPrice = (product: Product): number => {
+    return hasValidOffer(product) ? product.offerPrice! : product.basePrice;
+  };
+
+  // Carousel navigation functions
+  const prevImage = (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndexes((prev) => {
+      const product = products.find((p) => p._id === productId);
+      const images = product?.images || [];
+      const currentIndex = prev[productId] || 0;
+      const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
+      return { ...prev, [productId]: newIndex };
+    });
+  };
+
+  const nextImage = (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndexes((prev) => {
+      const product = products.find((p) => p._id === productId);
+      const images = product?.images || [];
+      const currentIndex = prev[productId] || 0;
+      const newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
+      return { ...prev, [productId]: newIndex };
+    });
   };
 
   return (
@@ -212,48 +250,98 @@ export default function ProductsPage() {
               </div>
             ) : products.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {products.map(product => (
-                  <div
-                    key={product._id}
-                    className="bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition p-4 flex flex-col cursor-pointer"
-                    onClick={() => router.push(`/products/${product._id}`)}
-                  >
-                    <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden mb-4">
-                      <img
-                        src={getProductImage(product)}
-                        alt={product.title}
-                        loading="lazy"
-                        className="object-cover w-full h-full transition-transform duration-200 hover:scale-105 rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div>
-                        <h2
-                          className="text-lg font-semibold text-gray-900 truncate"
-                          title={product.title}
-                        >
-                          {product.title}
-                        </h2>
-                        <p
-                          className="text-sm text-gray-600 truncate"
-                          title={product.category}
-                        >
-                          Category: {product.category}
-                        </p>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xl font-bold">
-                          ₹{typeof product.basePrice === 'number' ? product.basePrice.toLocaleString() : 'N/A'}
-                        </span>
-                        {hasValidOffer(product) && (
-                          <span className="text-sm text-gray-500 line-through">
-                            ₹{product.offerPrice!.toLocaleString()}
-                          </span>
+                {products.map(product => {
+                  const currentImageIndex = currentImageIndexes[product._id] || 0;
+                  const totalImages = product.images?.length || 0;
+                  const hasActiveOffer = hasValidOffer(product);
+                  const displayPrice = getDisplayPrice(product);
+
+                  return (
+                    <div
+                      key={product._id}
+                      className="bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition p-4 flex flex-col cursor-pointer group"
+                      onClick={() => router.push(`/products/${product._id}`)}
+                    >
+                      {/* Image with Carousel */}
+                      <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden mb-4">
+                        <img
+                          src={getProductImage(product, currentImageIndex)}
+                          alt={product.title}
+                          loading="lazy"
+                          className="object-cover w-full h-full transition-transform duration-200 group-hover:scale-105 rounded-lg"
+                        />
+                        
+                        {/* Carousel Controls - Only show if there are multiple images */}
+                        {totalImages > 1 && (
+                          <>
+                            <button
+                              onClick={(e) => prevImage(product._id, e)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
+                            >
+                              <ChevronLeft size={20} />
+                            </button>
+                            <button
+                              onClick={(e) => nextImage(product._id, e)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
+                            >
+                              <ChevronRight size={20} />
+                            </button>
+                            
+                            {/* Image Counter */}
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2 py-1 rounded-full text-xs">
+                              {currentImageIndex + 1} / {totalImages}
+                            </div>
+                          </>
+                        )}
+                        
+                        {/* Discount Badge */}
+                        {hasActiveOffer && (
+                          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
+                            SALE
+                          </div>
                         )}
                       </div>
+
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div>
+                          <h2
+                            className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2"
+                            title={product.title}
+                          >
+                            {product.title}
+                          </h2>
+                          <p
+                            className="text-sm text-gray-600 truncate"
+                            title={product.category}
+                          >
+                            Category: {product.category}
+                          </p>
+                        </div>
+                        
+                        {/* Price Display */}
+                        <div className="mt-3">
+                          {hasActiveOffer ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-bold text-gray-900">
+                                ₹{displayPrice.toLocaleString()}
+                              </span>
+                              <span className="text-lg text-gray-500 line-through">
+                                ₹{product.basePrice.toLocaleString()}
+                              </span>
+                              <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                                Save ₹{(product.basePrice - product.offerPrice!).toLocaleString()}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xl font-bold text-gray-900">
+                              ₹{product.basePrice.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -265,30 +353,5 @@ export default function ProductsPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function getProductImage(product: Product): string {
-  if (product.featuredImage) {
-    return product.featuredImage.startsWith('http') || product.featuredImage.startsWith('/')
-      ? product.featuredImage
-      : `/uploads/products/${product.featuredImage}`;
-  }
-  if (product.images && product.images.length > 0) {
-    const image = product.images[0];
-    return image.startsWith('http') || image.startsWith('/')
-      ? image
-      : `/uploads/products/${image}`;
-  }
-  return '/placeholder-image.png'; // fallback placeholder
-}
-
-function hasValidOffer(product: Product): boolean {
-  return (
-    product.offerPrice !== undefined &&
-    product.offerPrice !== null &&
-    product.basePrice !== undefined &&
-    product.basePrice !== null &&
-    product.offerPrice < product.basePrice
   );
 }
