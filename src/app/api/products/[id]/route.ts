@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Product from '@/models/Product';
 
 // GET single product
+// /api/products/[id]
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

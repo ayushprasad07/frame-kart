@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Shield, Truck, Clock, ArrowRight, Instagram, Facebook, Twitter, Mail } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 interface Category {
   name: string;
@@ -20,6 +21,7 @@ interface Product {
   images: string[];
   featuredImage?: string;
   description?: string;
+  isFeatured?: boolean;
 }
 
 // Helper functions moved outside component
@@ -71,21 +73,37 @@ async function getCategories(): Promise<Category[]> {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   // Track current image index per product for carousel
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
-    getFeaturedProducts().then((prods) => {
-      setProducts(prods);
-      const initIndexes: { [key: string]: number } = {};
-      prods.forEach((p) => {
-        initIndexes[p._id] = 0;
-      });
-      setCurrentImageIndexes(initIndexes);
-    });
-    getCategories().then(setCategories);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [prods, cats] = await Promise.all([
+          getFeaturedProducts(),
+          getCategories()
+        ]);
+        
+        setProducts(prods);
+        setCategories(cats);
+        
+        const initIndexes: { [key: string]: number } = {};
+        prods.forEach((p) => {
+          initIndexes[p._id] = 0;
+        });
+        setCurrentImageIndexes(initIndexes);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleProductClick = (productId: string) => {
@@ -117,83 +135,155 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <main>
-        {/* Hero Section */}
-        <section className="relative bg-white text-gray-900 overflow-hidden">
+        {/* Enhanced Hero Section */}
+        <section className="relative bg-gradient-to-br from-slate-50 via-white to-blue-50 overflow-hidden">
+          <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-            <div className="text-center space-y-8 max-w-3xl mx-auto">
-              <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-                Frame Your{' '}
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
-                  Precious Moments
-                </span>
-              </h1>
-              <p className="text-xl md:text-2xl text-gray-700">
-                Discover handcrafted frames and curated artwork that transform your space into a gallery
+            <div className="text-center space-y-8 max-w-4xl mx-auto">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
+                  <Star className="w-4 h-4" />
+                  Premium Quality Frames & Artwork
+                </div>
+                <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight bg-gradient-to-br from-slate-900 via-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  Frame Your
+                  <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    World Beautifully
+                  </span>
+                </h1>
+              </div>
+              <p className="text-xl md:text-2xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                Transform your space with our curated collection of premium frames and artwork. 
+                Each piece tells a story, every frame preserves a memory.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
                 <Link
                   href="/products"
-                  className="px-8 py-4 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                  className="group relative px-8 py-4 bg-slate-900 text-white rounded-2xl font-semibold hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                 >
-                  Shop Collection
+                  <span className="flex items-center gap-2">
+                    Explore Collection
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </span>
                 </Link>
                 <Link
                   href="/products?sort=featured"
-                  className="px-8 py-4 bg-transparent border-2 border-blue-600 text-blue-600 rounded-full font-semibold hover:bg-blue-600 hover:text-white transition-all duration-300"
+                  className="group px-8 py-4 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl font-semibold hover:bg-slate-900 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl"
                 >
-                  View Featured
+                  <span className="flex items-center gap-2">
+                    Featured Pieces
+                    <Star className="w-4 h-4" />
+                  </span>
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Category Scroll */}
-        <section className="py-16 md:py-24 bg-gray-50">
+        {/* Features Section */}
+        <section className="py-16 bg-white border-y border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Shop by Category</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 sm:grid-cols-2 gap-6 sm:gap-2">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Truck className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Free Shipping</h3>
+                <p className="text-slate-600">Free delivery on orders over ₹1999</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Quality Guarantee</h3>
+                <p className="text-slate-600">30-day money back guarantee</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Clock className="w-8 h-8 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">Fast Support</h3>
+                <p className="text-slate-600">24/7 customer support</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Enhanced Category Scroll */}
+        <section className="py-20 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Shop by Category</h2>
+              <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+                Discover our carefully curated categories, each designed to bring unique character to your space
+              </p>
+            </div>
+            
             {categories.length === 0 ? (
-              <p className="text-gray-500">No categories to display.</p>
+              <div className="text-center py-12">
+                <p className="text-slate-500 text-lg">No categories available at the moment.</p>
+              </div>
             ) : (
-              <div
-                className="flex space-x-6 overflow-x-auto scrollbar-hide py-2"
-                style={{ scrollSnapType: 'x mandatory' }}
-              >
-                {categories.map((category) => (
-                  <Link
-                    key={category.name}
-                    href={`/products?category=${encodeURIComponent(category.name)}`}
-                    className="flex-shrink-0 min-w-[8rem] cursor-pointer rounded-2xl border border-gray-200 bg-white py-3 px-5 text-center text-gray-900 font-semibold text-lg hover:bg-blue-50 hover:border-blue-400 transition-colors duration-300 shadow-sm scroll-snap-align-start"
-                  >
-                    {category.name}
-                    <div className="text-sm text-gray-500 mt-1">
-                      {category.count} product{category.count !== 1 ? 's' : ''}
-                    </div>
-                  </Link>
-                ))}
+              <div className="relative">
+                <div className="flex space-x-6 overflow-x-auto scrollbar-hide py-4 px-2 -mx-2">
+                  {categories.map((category, index) => (
+                    <Link
+                      key={category.name}
+                      href={`/products?category=${encodeURIComponent(category.name)}`}
+                      className="group flex-shrink-0 w-64 cursor-pointer rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm hover:shadow-xl hover:border-blue-300 transition-all duration-300 transform hover:scale-105"
+                    >
+                      <div className="space-y-3">
+                        <h3 className="text-xl font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {category.name}
+                        </h3>
+                        <p className="text-slate-500">
+                          {category.count} unique item{category.count !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </section>
 
-        {/* Featured Products */}
-        <section className="py-16 md:py-24 bg-white">
+        {/* Enhanced Featured Products */}
+        <section className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Featured Products</h2>
-                <p className="text-gray-600 text-lg">Handpicked favorites for you</p>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16">
+              <div className="text-center lg:text-left mb-8 lg:mb-0">
+                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+                  Featured Collection
+                </h2>
+                <p className="text-xl text-slate-600 max-w-2xl">
+                  Handpicked masterpieces that redefine elegance and style
+                </p>
               </div>
               <Link
                 href="/products"
-                className="hidden md:flex items-center text-blue-600 font-semibold hover:text-blue-700 transition-colors duration-300 group"
+                className="group inline-flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
-                View All <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">→</span>
+                View All Products
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
 
-            {products.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[...Array(6)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="bg-slate-200 rounded-2xl aspect-[4/3] mb-4"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                      <div className="h-6 bg-slate-200 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {products.map((product) => {
                   const currentIndex = currentImageIndexes[product._id] ?? 0;
                   const totalImages = product.images?.length || 0;
@@ -203,69 +293,76 @@ export default function Home() {
                     <div
                       key={product._id}
                       onClick={() => handleProductClick(product._id)}
-                      className="cursor-pointer flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-2xl"
+                      className="group cursor-pointer flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-lg hover:shadow-2xl transition-all duration-300 hover:border-slate-300"
                     >
-                      {/* Image with carousel */}
-                      <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden flex-shrink-0 mb-4">
+                      {/* Image with enhanced carousel */}
+                      <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden flex-shrink-0 mb-6">
                         <img
                           src={imageSrc}
                           alt={`${product.title} image ${currentIndex + 1}`}
                           loading="lazy"
-                          className="object-cover w-full h-full rounded-lg"
+                          className="object-cover w-full h-full rounded-2xl group-hover:scale-105 transition-transform duration-500"
                         />
+                        
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 rounded-2xl" />
+                        
                         {totalImages > 1 && (
                           <>
                             <button
                               onClick={(e) => prevImage(product._id, e)}
                               aria-label="Previous Image"
-                              className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-1 transition"
+                              className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-900 p-2 transition-all duration-300 opacity-0 group-hover:opacity-100 shadow-lg"
                             >
-                              <ChevronLeft size={18} />
+                              <ChevronLeft size={20} />
                             </button>
                             <button
                               onClick={(e) => nextImage(product._id, e)}
                               aria-label="Next Image"
-                              className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-1 transition"
+                              className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white/90 hover:bg-white text-slate-900 p-2 transition-all duration-300 opacity-0 group-hover:opacity-100 shadow-lg"
                             >
-                              <ChevronRight size={18} />
+                              <ChevronRight size={20} />
                             </button>
-                            {/* Image counter */}
-                            <div className="absolute bottom-2 left-2 bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs">
+                            {/* Enhanced image counter */}
+                            <div className="absolute bottom-4 left-4 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm font-medium">
                               {currentIndex + 1} / {totalImages}
                             </div>
                           </>
                         )}
+                        
+                        {/* Featured badge */}
+                        {product.isFeatured && (
+                          <div className="absolute top-4 right-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
+                            Featured
+                          </div>
+                        )}
                       </div>
 
-                      {/* Product Info */}
-                      <div className="flex flex-col flex-1">
-                        <h3
-                          className="text-lg font-semibold text-gray-900 truncate mb-2"
-                          title={product.title}
-                        >
-                          {product.title}
-                        </h3>
-                        <p
-                          className="text-gray-600 mb-2 line-clamp-2 text-sm flex-1"
-                          title={product.description}
-                        >
-                          {product.description || 'No description available.'}
-                        </p>
-                        <p
-                          className="text-sm text-gray-600 truncate mb-3"
-                          title={product.category}
-                        >
-                          Category: {product.category}
-                        </p>
-                        <div className="flex items-center gap-4 mt-auto">
-                          <span className="text-sm text-gray-500 line-through">
-                            ₹{product.basePrice.toLocaleString()}
-                          </span>
-                          {hasValidOffer(product) && product.offerPrice && (
-                            <span className="text-xl text-gray-900  font-bold ">
-                              ₹{product.offerPrice.toLocaleString()}
+                      {/* Enhanced Product Info */}
+                      <div className="flex flex-col flex-1 space-y-4">
+                        <div>
+                          <h3 className="text-xl font-semibold text-slate-900 line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
+                            {product.title}
+                          </h3>
+                          <p className="text-slate-600 line-clamp-2 text-sm leading-relaxed">
+                            {product.description || 'Beautiful piece to enhance your space.'}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-slate-500 line-through">
+                              ₹{product.basePrice.toLocaleString()}
                             </span>
-                          )}
+                            {hasValidOffer(product) && product.offerPrice && (
+                              <span className="text-2xl font-bold text-slate-900">
+                                ₹{product.offerPrice.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                            {product.category}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -273,21 +370,27 @@ export default function Home() {
                 })}
               </div>
             ) : (
-              <p className="text-center text-gray-500 py-16">No featured products available.</p>
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Star className="w-10 h-10 text-slate-400" />
+                </div>
+                <h3 className="text-2xl font-semibold text-slate-900 mb-3">No Featured Products</h3>
+                <p className="text-slate-600 mb-8 max-w-md mx-auto">
+                  Our featured collection is being curated. Check back soon for amazing pieces!
+                </p>
+                <Link
+                  href="/products"
+                  className="inline-flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-slate-800 transition-colors"
+                >
+                  Browse All Products
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             )}
-
-            {/* Mobile "View All" */}
-            <div className="mt-12 text-center md:hidden">
-              <Link
-                href="/products"
-                className="inline-flex items-center px-8 py-3 bg-slate-900 text-white rounded-full font-semibold hover:bg-slate-800 transition-colors duration-300"
-              >
-                View All Products <span className="ml-2">→</span>
-              </Link>
-            </div>
           </div>
         </section>
       </main>
+      <Footer/>
     </div>
   );
 }

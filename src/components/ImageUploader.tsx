@@ -4,45 +4,54 @@ import { useState, useRef } from 'react';
 import Image from 'next/image';
 
 interface ImageUploaderProps {
-  images: File[];
-  onImagesChange: (images: File[]) => void;
-  featuredImage: File | null;
-  onFeaturedImageChange: (image: File) => void;
+  images: string[]; // Changed from File[] to string[] (URLs)
+  onImagesChange: (images: string[]) => void;
+  onImagesDelete?: (images: string[]) => void; // Added this prop
+  featuredImage: string; // Changed from File | null to string
+  onFeaturedChange: (image: string) => void; // Changed prop name
 }
 
 export default function ImageUploader({
   images,
   onImagesChange,
+  onImagesDelete,
   featuredImage,
-  onFeaturedImageChange,
+  onFeaturedChange,
 }: ImageUploaderProps) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localFiles, setLocalFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<{ [key: string]: string }>({});
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]); // Track images marked for deletion
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
     if (files.length > 0) {
       // Create previews for new files
+      const newPreviews: { [key: string]: string } = {};
       files.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          setPreviews(prev => ({
-            ...prev,
-            [file.name]: e.target?.result as string
-          }));
+          newPreviews[file.name] = e.target?.result as string;
+          setPreviews(prev => ({ ...prev, ...newPreviews }));
         };
         reader.readAsDataURL(file);
       });
 
-      // Add new files to images
-      const newImages = [...images, ...files];
-      onImagesChange(newImages);
+      // Store local files for preview
+      setLocalFiles(prev => [...prev, ...files]);
+
+      // Create temporary URLs for the new images
+      const newImageUrls = files.map(file => URL.createObjectURL(file));
+      
+      // Combine existing images with new ones
+      const updatedImages = [...images, ...newImageUrls];
+      onImagesChange(updatedImages);
 
       // Set first image as featured if none is set
-      if (!featuredImage && files.length > 0) {
-        onFeaturedImageChange(files[0]);
+      if (!featuredImage && newImageUrls.length > 0) {
+        onFeaturedChange(newImageUrls[0]);
       }
     }
 
@@ -53,25 +62,32 @@ export default function ImageUploader({
   };
 
   const handleRemoveImage = (index: number) => {
-    const fileToRemove = images[index];
+    const imageToRemove = images[index];
     const newImages = images.filter((_, i) => i !== index);
     onImagesChange(newImages);
 
-    // Remove preview
-    setPreviews(prev => {
-      const newPreviews = { ...prev };
-      delete newPreviews[fileToRemove.name];
-      return newPreviews;
-    });
+    // If it's a local file (new upload), clean up the object URL
+    if (imageToRemove.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToRemove);
+      // Also remove from local files
+      setLocalFiles(prev => prev.filter(file => 
+        URL.createObjectURL(file) !== imageToRemove
+      ));
+    } else {
+      // If it's an existing image from server, add to delete list
+      const updatedImagesToDelete = [...imagesToDelete, imageToRemove];
+      setImagesToDelete(updatedImagesToDelete);
+      onImagesDelete?.(updatedImagesToDelete);
+    }
 
     // If removed image was featured, set new featured image
-    if (featuredImage === fileToRemove) {
-      onFeaturedImageChange(newImages[0] || null);
+    if (featuredImage === imageToRemove) {
+      onFeaturedChange(newImages[0] || '');
     }
   };
 
-  const setAsFeatured = (image: File) => {
-    onFeaturedImageChange(image);
+  const setAsFeatured = (image: string) => {
+    onFeaturedChange(image);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -83,59 +99,88 @@ export default function ImageUploader({
     const files = Array.from(e.dataTransfer.files);
     
     if (files.length > 0) {
+      // Create previews for new files
+      const newPreviews: { [key: string]: string } = {};
       files.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
-          setPreviews(prev => ({
-            ...prev,
-            [file.name]: e.target?.result as string
-          }));
+          newPreviews[file.name] = e.target?.result as string;
+          setPreviews(prev => ({ ...prev, ...newPreviews }));
         };
         reader.readAsDataURL(file);
       });
 
-      const newImages = [...images, ...files];
-      onImagesChange(newImages);
+      // Store local files
+      setLocalFiles(prev => [...prev, ...files]);
 
-      if (!featuredImage && files.length > 0) {
-        onFeaturedImageChange(files[0]);
+      // Create temporary URLs
+      const newImageUrls = files.map(file => URL.createObjectURL(file));
+      const updatedImages = [...images, ...newImageUrls];
+      onImagesChange(updatedImages);
+
+      if (!featuredImage && newImageUrls.length > 0) {
+        onFeaturedChange(newImageUrls[0]);
       }
     }
+  };
+
+  // Helper to get image source for display
+  const getImageSrc = (image: string) => {
+    if (image.startsWith('blob:')) {
+      return image; // Local file blob URL
+    }
+    // For existing images, you might want to prepend your base URL
+    return image;
+  };
+
+  // Helper to get image name for display
+  const getImageName = (image: string, index: number) => {
+    if (image.startsWith('blob:')) {
+      const correspondingFile = localFiles.find(file => 
+        URL.createObjectURL(file) === image
+      );
+      return correspondingFile?.name || `image-${index + 1}`;
+    }
+    return image.split('/').pop() || `image-${index + 1}`;
   };
 
   return (
     <div className="space-y-6">
       {/* Featured Image */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2 text-slate-200">
           Featured Image *
         </label>
         {featuredImage ? (
-          <div className="flex items-center gap-4 p-4 border border-gray-300 rounded-md">
-            <div className="relative w-20 h-20 bg-gray-100 rounded-md overflow-hidden">
+          <div className="flex items-center gap-4 p-4 border border-slate-700 rounded-md bg-slate-800/50">
+            <div className="relative w-20 h-20 bg-slate-700 rounded-md overflow-hidden">
               <Image
-                src={previews[featuredImage.name] || URL.createObjectURL(featuredImage)}
+                src={getImageSrc(featuredImage)}
                 alt="Featured"
                 fill
                 className="object-cover"
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  e.currentTarget.src = '/api/placeholder/80/80';
+                }}
               />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                {featuredImage.name}
+              <p className="text-sm font-medium text-slate-100">
+                {getImageName(featuredImage, images.indexOf(featuredImage))}
               </p>
-              <p className="text-sm text-gray-500">
-                {(featuredImage.size / 1024 / 1024).toFixed(2)} MB
+              <p className="text-sm text-slate-400">
+                Featured image
               </p>
             </div>
-            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+            <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded-full">
               Featured
             </span>
           </div>
         ) : (
-          <div className="p-8 border-2 border-dashed border-gray-300 rounded-md text-center">
-            <p className="text-gray-500">No featured image selected</p>
-            <p className="text-sm text-gray-400 mt-1">
+          <div className="p-8 border-2 border-dashed border-slate-600 rounded-md text-center bg-slate-800/30">
+            <p className="text-slate-400">No featured image selected</p>
+            <p className="text-sm text-slate-500 mt-1">
               Select images below and set one as featured
             </p>
           </div>
@@ -144,14 +189,14 @@ export default function ImageUploader({
 
       {/* Image Upload Area */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2 text-slate-200">
           Product Images *
         </label>
         
         <div
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+          className="border-2 border-dashed border-slate-600 rounded-md p-6 text-center hover:border-slate-400 transition-colors cursor-pointer bg-slate-800/30"
           onClick={() => fileInputRef.current?.click()}
         >
           <input
@@ -165,7 +210,7 @@ export default function ImageUploader({
           
           <div className="space-y-2">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-12 w-12 text-slate-500"
               stroke="currentColor"
               fill="none"
               viewBox="0 0 48 48"
@@ -178,10 +223,10 @@ export default function ImageUploader({
               />
             </svg>
             <div>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-slate-200">
                 Drag and drop images here, or click to select
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-400">
                 PNG, JPG, GIF up to 10MB each
               </p>
             </div>
@@ -192,21 +237,24 @@ export default function ImageUploader({
       {/* Image Previews */}
       {images.length > 0 && (
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-700 mb-2 text-slate-200">
             Selected Images ({images.length})
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {images.map((image, index) => (
               <div
-                key={`${image.name}-${index}`}
-                className="relative group border border-gray-200 rounded-md overflow-hidden"
+                key={`${image}-${index}`}
+                className="relative group border border-slate-600 rounded-md overflow-hidden bg-slate-800/50"
               >
-                <div className="relative h-24 bg-gray-100">
+                <div className="relative h-24 bg-slate-700">
                   <Image
-                    src={previews[image.name] || URL.createObjectURL(image)}
+                    src={getImageSrc(image)}
                     alt={`Preview ${index + 1}`}
                     fill
                     className="object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = '/api/placeholder/96/96';
+                    }}
                   />
                 </div>
                 
