@@ -26,18 +26,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <SidebarProvider>
-      <AppSidebar />
-     <main className="flex-1 overflow-y-auto px-4">
-              <SidebarTrigger />
-              {children}
-            </main>
-    </SidebarProvider>
-      </body>
-    </html>
+    // <html lang="en">
+    //   <body
+    //     className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+    //   >
+        <div>
+          <SidebarProvider>
+          <AppSidebar />
+          <main className="flex-1 overflow-y-auto px-4">
+                    <SidebarTrigger />
+                    {children}
+                  </main>
+          </SidebarProvider>
+        </div>
+    //   </body>
+    // </html>
   );
 }
