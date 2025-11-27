@@ -4,15 +4,15 @@ import Order from '@/models/Order';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ orderNumber: string }> }
+  { params }: { params: Promise<{ ordernumber: string }> } // Change to lowercase
 ) {
   try {
     await connectDB();
-    const { orderNumber } = await params;
+    const { ordernumber } = await params; // Change to lowercase
 
-    const order = await Order.findOne({ orderNumber })
+    const order = await Order.findOne({ orderNumber: ordernumber }) // Use lowercase variable but match to your schema field
       .populate('items.productId', 'title images')
-      .select('-customer.email -customer.phone'); // Exclude sensitive info for public tracking
+      .select('-customer.email -customer.phone');
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
