@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, X, Search, SlidersHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface Product {
   _id: string;
@@ -28,11 +34,10 @@ interface Product {
 
 export default function ProductsPage() {
   const router = useRouter();
-
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    category: '',
+    category: 'all',
     search: '',
     minPrice: '',
     maxPrice: '',
@@ -40,6 +45,7 @@ export default function ProductsPage() {
   });
   const [categories, setCategories] = useState<string[]>([]);
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -50,7 +56,7 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filters.category) params.append('category', filters.category);
+      if (filters.category && filters.category !== 'all') params.append('category', filters.category);
       if (filters.search) params.append('search', filters.search);
       if (filters.minPrice) params.append('minPrice', filters.minPrice);
       if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
@@ -59,7 +65,6 @@ export default function ProductsPage() {
       const res = await fetch(`/api/products?${params.toString()}`);
       const data = await res.json();
 
-      // Normalize price types if needed
       const normalizedProducts = (data.products || []).map((p: Product) => ({
         ...p,
         basePrice: typeof p.basePrice === 'string' ? Number(p.basePrice) : p.basePrice,
@@ -68,7 +73,6 @@ export default function ProductsPage() {
 
       setProducts(normalizedProducts);
       
-      // Initialize image indexes for carousel
       const initialIndexes: { [key: string]: number } = {};
       normalizedProducts.forEach((product: Product) => {
         initialIndexes[product._id] = 0;
@@ -95,14 +99,12 @@ export default function ProductsPage() {
   };
 
   const getProductImage = (product: Product, imageIndex: number = 0): string => {
-    // Use images array for carousel if available
     if (product.images && product.images.length > 0) {
       const image = product.images[imageIndex];
       return image.startsWith('http') || image.startsWith('/')
         ? image
         : `/uploads/products/${image}`;
     }
-    // Fallback to featuredImage
     if (product.featuredImage) {
       return product.featuredImage.startsWith('http') || product.featuredImage.startsWith('/')
         ? product.featuredImage
@@ -125,7 +127,6 @@ export default function ProductsPage() {
     return hasValidOffer(product) ? product.offerPrice! : product.basePrice;
   };
 
-  // Carousel navigation functions
   const prevImage = (productId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentImageIndexes((prev) => {
@@ -148,209 +149,314 @@ export default function ProductsPage() {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-pink-50">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-        <div className="flex mt-8 flex-col lg:flex-row gap-8">
-          {/* Filters */}
-          <aside className="w-full lg:w-72 bg-white/40 backdrop-blur-lg backdrop-filter border border-gray-200 rounded-2xl shadow-lg h-fit p-8 transition hover:shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 tracking-tight">Filters</h2>
+  const activeFilterCount = [
+    filters.category !== 'all',
+    filters.search,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.sort !== 'newest'
+  ].filter(Boolean).length;
 
-            {/* Search */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-              <input
+  const clearFilters = () => {
+    setFilters({
+      category: 'all',
+      search: '',
+      minPrice: '',
+      maxPrice: '',
+      sort: 'newest',
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+          <div className="text-center lg:text-left mb-6 lg:mb-0">
+            <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+              {filters.category !== 'all' ? `${filters.category} Frames` : 'All Frames'}
+            </h1>
+            <p className="text-slate-600 mt-2 text-lg">
+              Discover the perfect frame for your memories
+            </p>
+          </div>
+
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Input
                 type="text"
+                placeholder="Search frames..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                placeholder="Search products..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white/60 backdrop-blur focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className="pl-10 bg-white/80 backdrop-blur-sm border-slate-200 focus:border-slate-300"
               />
             </div>
 
-            {/* Category */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select
-                value={filters.category}
-                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white/60 backdrop-blur focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+            {/* Filter Dialog */}
+            <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="relative bg-white/80 backdrop-blur-sm border-slate-200 hover:bg-white">
+                  <SlidersHorizontal className="h-4 w-4 mr-2" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Filter className="h-5 w-5" />
+                    Filters
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                  {/* Category Filter */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-slate-900">Category</label>
+                    <Select value={filters.category} onValueChange={(value: string) => setFilters({ ...filters, category: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            {/* Price Range */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={filters.minPrice}
-                  onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-                  placeholder="Min"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white/60 backdrop-blur focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                />
-                <input
-                  type="number"
-                  value={filters.maxPrice}
-                  onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-                  placeholder="Max"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white/60 backdrop-blur focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-                />
-              </div>
-            </div>
+                  {/* Price Range */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-slate-900">Price Range</label>
+                    <div className="flex gap-3">
+                      <Input
+                        type="number"
+                        placeholder="Min"
+                        value={filters.minPrice}
+                        onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
+                        className="bg-slate-50"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Max"
+                        value={filters.maxPrice}
+                        onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
+                        className="bg-slate-50"
+                      />
+                    </div>
+                  </div>
 
-            {/* Sort */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-              <select
-                value={filters.sort}
-                onChange={(e) => setFilters({ ...filters, sort: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white/60 backdrop-blur focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
-              >
-                <option value="newest">Newest First</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="discount">Best Discount</option>
-              </select>
-            </div>
+                  {/* Sort */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-slate-900">Sort By</label>
+                    <Select value={filters.sort} onValueChange={(value: string) => setFilters({ ...filters, sort: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">Newest First</SelectItem>
+                        <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                        <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                        <SelectItem value="discount">Best Discount</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            <button
-              onClick={() => setFilters({
-                category: '',
-                search: '',
-                minPrice: '',
-                maxPrice: '',
-                sort: 'newest',
-              })}
-              className="w-full px-4 py-2 bg-gray-200/90 text-gray-700 rounded-lg hover:bg-gray-300/90 transition-colors"
-            >
-              Clear Filters
-            </button>
-          </aside>
-
-          {/* Products Grid */}
-          <section className="flex-1">
-            <div className="mb-8">
-              <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                {filters.category ? filters.category : 'All Products'}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {products.length} product{products.length !== 1 ? 's' : ''} found
-              </p>
-            </div>
-
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 animate-pulse">Loading products...</p>
-              </div>
-            ) : products.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {products.map(product => {
-                  const currentImageIndex = currentImageIndexes[product._id] || 0;
-                  const totalImages = product.images?.length || 0;
-                  const hasActiveOffer = hasValidOffer(product);
-                  const displayPrice = getDisplayPrice(product);
-
-                  return (
-                    <div
-                      key={product._id}
-                      className="bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-2xl transition p-4 flex flex-col cursor-pointer group"
-                      onClick={() => router.push(`/products/${product._id}`)}
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={clearFilters}
+                      className="flex-1"
                     >
-                      {/* Image with Carousel */}
-                      <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden mb-4">
-                        <img
-                          src={getProductImage(product, currentImageIndex)}
-                          alt={product.title}
-                          loading="lazy"
-                          className="object-cover w-full h-full transition-transform duration-200 group-hover:scale-105 rounded-lg"
-                        />
-                        
-                        {/* Carousel Controls - Only show if there are multiple images */}
-                        {totalImages > 1 && (
-                          <>
-                            <button
-                              onClick={(e) => prevImage(product._id, e)}
-                              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
-                            >
-                              <ChevronLeft size={20} />
-                            </button>
-                            <button
-                              onClick={(e) => nextImage(product._id, e)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-opacity opacity-0 group-hover:opacity-100"
-                            >
-                              <ChevronRight size={20} />
-                            </button>
-                            
-                            {/* Image Counter */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2 py-1 rounded-full text-xs">
-                              {currentImageIndex + 1} / {totalImages}
-                            </div>
-                          </>
-                        )}
-                        
-                        {/* Discount Badge */}
-                        {hasActiveOffer && (
-                          <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">
-                            SALE
-                          </div>
-                        )}
-                      </div>
+                      <X className="h-4 w-4 mr-2" />
+                      Clear All
+                    </Button>
+                    <Button 
+                      onClick={() => setFilterOpen(false)}
+                      className="flex-1 bg-slate-900 hover:bg-slate-800"
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
 
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <h2
-                            className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2"
-                            title={product.title}
+        {/* Results Count */}
+        <div className="flex items-center justify-between mb-8">
+          <p className="text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{products.length}</span> product{products.length !== 1 ? 's' : ''}
+          </p>
+          
+          {/* Active Filters Display */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Active filters:</span>
+              {filters.category !== 'all' && (
+                <Badge variant="secondary" className="text-xs">
+                  Category: {filters.category}
+                </Badge>
+              )}
+              {filters.search && (
+                <Badge variant="secondary" className="text-xs">
+                  Search: {filters.search}
+                </Badge>
+              )}
+              {(filters.minPrice || filters.maxPrice) && (
+                <Badge variant="secondary" className="text-xs">
+                  Price: {filters.minPrice || '0'} - {filters.maxPrice || '∞'}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-6 px-2 text-xs text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Products Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-0">
+                  <div className="aspect-[4/3] bg-slate-200 rounded-t-lg" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 bg-slate-200 rounded w-3/4" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                    <div className="h-6 bg-slate-200 rounded w-1/3" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.map(product => {
+              const currentImageIndex = currentImageIndexes[product._id] || 0;
+              const totalImages = product.images?.length || 0;
+              const hasActiveOffer = hasValidOffer(product);
+              const displayPrice = getDisplayPrice(product);
+              const discountPercent = hasActiveOffer 
+                ? Math.round(((product.basePrice - product.offerPrice!) / product.basePrice) * 100)
+                : 0;
+
+              return (
+                <Card 
+                  key={product._id}
+                  className="group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-105 border-slate-200 overflow-hidden"
+                  onClick={() => router.push(`/products/${product._id}`)}
+                >
+                  <CardContent className="p-0">
+                    {/* Image with Carousel */}
+                    <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
+                      <img
+                        src={getProductImage(product, currentImageIndex)}
+                        alt={product.title}
+                        loading="lazy"
+                        className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                      />
+                      
+                      {/* Carousel Controls */}
+                      {totalImages > 1 && (
+                        <>
+                          <button
+                            onClick={(e) => prevImage(product._id, e)}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-900 rounded-full p-2 shadow-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
                           >
-                            {product.title}
-                          </h2>
-                          <p
-                            className="text-sm text-gray-600 truncate"
-                            title={product.category}
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => nextImage(product._id, e)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-900 rounded-full p-2 shadow-lg transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
                           >
-                            Category: {product.category}
-                          </p>
+                            <ChevronRight size={16} />
+                          </button>
+                          
+                          {/* Image Counter */}
+                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/80 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            {currentImageIndex + 1} / {totalImages}
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Discount Badge */}
+                      {hasActiveOffer && (
+                        <div className="absolute top-3 right-3">
+                          <Badge className="bg-red-500 hover:bg-red-600 text-white font-bold">
+                            {discountPercent}% OFF
+                          </Badge>
                         </div>
-                        
-                        {/* Price Display */}
-                        <div className="mt-3">
-                          {hasActiveOffer ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl font-bold text-gray-900">
-                                ₹{displayPrice.toLocaleString()}
-                              </span>
-                              <span className="text-lg text-gray-500 line-through">
-                                ₹{product.basePrice.toLocaleString()}
-                              </span>
-                              <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
-                                Save ₹{(product.basePrice - product.offerPrice!).toLocaleString()}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xl font-bold text-gray-900">
+                      )}
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-slate-900 line-clamp-2 leading-tight group-hover:text-slate-700 transition-colors">
+                          {product.title}
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1 truncate">
+                          {product.category}
+                        </p>
+                      </div>
+                      
+                      {/* Price */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-bold text-slate-900">
+                            ₹{displayPrice.toLocaleString()}
+                          </span>
+                          {hasActiveOffer && (
+                            <span className="text-sm text-slate-400 line-through">
                               ₹{product.basePrice.toLocaleString()}
                             </span>
                           )}
                         </div>
+                        {product.deliveryEstimate && (
+                          <Badge variant="outline" className="text-xs">
+                            {product.deliveryEstimate}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="text-center py-16 border-slate-200">
+            <CardContent>
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="h-8 w-8 text-slate-400" />
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No products found.</p>
-                <p className="text-gray-400 mt-2">Try adjusting your filters or search keywords.</p>
-              </div>
-            )}
-          </section>
-        </div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">No products found</h3>
+              <p className="text-slate-600 mb-6 max-w-sm mx-auto">
+                Try adjusting your search terms or filters to find what you're looking for.
+              </p>
+              <Button onClick={clearFilters} variant="outline">
+                Clear all filters
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ShoppingCart, Package, Menu, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext'; // Assuming you have this context
+import Image from 'next/image';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { cartItems } = useCart(); // Get cart items from context
 
   // Calculate total quantity dynamically
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartCount = cartItems?.reduce((total, item) => total + item.quantity, 0) || 0;
 
   return (
     <header className="relative">
@@ -19,30 +20,34 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center">
+            <div className="flex items-center content-center">
               <Link href="/" className="flex items-center space-x-2 group">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  F
+                <div className="relative w-32 h-32 transition-transform duration-300 group-hover:scale-105">
+                  <Image 
+                    src='/Nova_Crafto.png' 
+                    alt='NovaCrafto - Premium Frames & Artwork'
+                    fill
+                    className="object-contain object-left"
+                    priority
+                    sizes="(max-width: 768px) 128px, 160px"
+                  />
                 </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  FrameKart
-                </span>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex text-white items-center space-x-1">
               <Link
-                href="/products"
-                className="px-4 py-2 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
-              >
-                Products
-              </Link>
-              <Link
                 href="/"
                 className="px-4 py-2 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
               >
                 Home
+              </Link>
+              <Link
+                href="/products"
+                className="px-4 py-2 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
+              >
+                Products
               </Link>
             </div>
 
@@ -66,7 +71,7 @@ export default function Navbar() {
                   <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
                   {cartCount > 0 && (
                     <span className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-pink-500 to-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                      {cartCount}
+                      {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </div>
@@ -89,33 +94,20 @@ export default function Navbar() {
           <div className="md:hidden border-t border-gray-200/50 bg-white/40 backdrop-blur-lg backdrop-filter rounded-b-xl">
             <div className="px-4 py-4 space-y-2">
               <Link
+                href="/"
+                className="block px-4 py-3 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link
                 href="/products"
                 className="block px-4 py-3 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Products
+                All Products
               </Link>
-              <Link
-                href="/products?category=frames"
-                className="block px-4 py-3 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Frames
-              </Link>
-              <Link
-                href="/products?category=artwork"
-                className="block px-4 py-3 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Artwork
-              </Link>
-              <Link
-                href="/products?category=accessories"
-                className="block px-4 py-3 text-neutral-700 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg font-medium transition-all duration-300"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Accessories
-              </Link>
+              
 
               <div className="border-t border-gray-200/50 pt-2 mt-2">
                 <Link
@@ -126,12 +118,14 @@ export default function Navbar() {
                   <Package className="w-5 h-5" />
                   <span>My Orders</span>
                 </Link>
-                
               </div>
             </div>
           </div>
         )}
       </nav>
+      
+      {/* Spacer to prevent content from going behind fixed navbar */}
+      <div className="h-16"></div>
     </header>
   );
 }

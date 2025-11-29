@@ -6,10 +6,11 @@ import Image from 'next/image';
 interface ProductGalleryProps {
   images: string[];
   title: string;
-  featuredImage?: string; // Add featuredImage as optional prop
+  featuredImage?: string;
+  className?: string; // Added to match usage in ProductDetailPage
 }
 
-export default function ProductGallery({ images, title, featuredImage }: ProductGalleryProps) {
+export default function ProductGallery({ images, title, featuredImage, className }: ProductGalleryProps) {
   // Use featuredImage as the first image if available, otherwise use the first image from images array
   const allImages = featuredImage ? [featuredImage, ...images] : images;
   const [selectedImage, setSelectedImage] = useState(allImages[0] || '');
@@ -24,6 +25,8 @@ export default function ProductGallery({ images, title, featuredImage }: Product
 
   // Helper function to get the correct image path
   const getImagePath = (image: string) => {
+    if (!image) return '/placeholder-image.jpg'; // Fallback for empty images
+    
     if (image.startsWith('http') || image.startsWith('/')) {
       return image;
     }
@@ -31,7 +34,7 @@ export default function ProductGallery({ images, title, featuredImage }: Product
   };
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${className || ''}`}>
       {/* Main Image */}
       <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
         <Image
@@ -41,6 +44,11 @@ export default function ProductGallery({ images, title, featuredImage }: Product
           className="object-cover"
           priority
           sizes="(max-width: 768px) 100vw, 50vw"
+          onError={(e) => {
+            // Fallback for broken images
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder-image.jpg';
+          }}
         />
       </div>
 
@@ -56,6 +64,7 @@ export default function ProductGallery({ images, title, featuredImage }: Product
                   ? 'border-blue-500 ring-2 ring-blue-200'
                   : 'border-transparent hover:border-gray-300'
               }`}
+              type="button" // Added for accessibility
             >
               <Image
                 src={getImagePath(image)}
@@ -63,6 +72,11 @@ export default function ProductGallery({ images, title, featuredImage }: Product
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 25vw, 10vw"
+                onError={(e) => {
+                  // Fallback for broken images
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/placeholder-image.jpg';
+                }}
               />
             </button>
           ))}
