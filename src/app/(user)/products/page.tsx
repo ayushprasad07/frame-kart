@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { useCart } from '@/context/CartContext';
 import Navbar from '@/context/Navbar';
 import Footer from '@/components/Footer';
@@ -82,7 +81,7 @@ function getDisplayPrice(product: Product): number {
   return hasValidOffer(product) ? product.offerPrice! : product.basePrice;
 }
 
-export default function ProductsPage() {
+export default function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToCart } = useCart();
@@ -90,17 +89,30 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    category: searchParams.get('category') || 'all',
-    search: searchParams.get('search') || '',
-    minPrice: searchParams.get('minPrice') || '',
-    maxPrice: searchParams.get('maxPrice') || '',
-    sort: searchParams.get('sort') || 'newest',
+    category: 'all',
+    search: '',
+    minPrice: '',
+    maxPrice: '',
+    sort: 'newest',
   });
   const [categories, setCategories] = useState<string[]>([]);
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
+
+  // Initialize filters from URL params
+  useEffect(() => {
+    if (searchParams) {
+      setFilters({
+        category: searchParams.get('category') || 'all',
+        search: searchParams.get('search') || '',
+        minPrice: searchParams.get('minPrice') || '',
+        maxPrice: searchParams.get('maxPrice') || '',
+        sort: searchParams.get('sort') || 'newest',
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchProducts();
@@ -444,11 +456,11 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 pt-28">
       <Navbar />
       
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 pt-28 pb-16 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 pb-16 overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1920&q=80')] bg-cover bg-center opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/50 to-transparent" />
