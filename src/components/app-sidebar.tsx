@@ -21,6 +21,10 @@ const items = [
     title: "Orders",
     url: "/admin/orders",
     icon: Inbox,
+  },{
+    title: "Uploads",
+    url: "/admin/upload-images",
+    icon: Search,
   }
 ];
 

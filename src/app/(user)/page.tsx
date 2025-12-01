@@ -15,7 +15,7 @@ import Navbar from '@/context/Navbar';
 interface Category {
   _id: string;
   name: string;
-  count: number;
+  productCount: number;
   image: string;
   slug: string;
   description: string;
@@ -27,8 +27,9 @@ interface Banner {
   subtitle?: string;
   image: string;
   link?: string;
+  linkText?: string;
   isActive: boolean;
-  order: number;
+  displayOrder: number;
 }
 
 interface Product {
@@ -49,57 +50,20 @@ interface Product {
   material?: string;
 }
 
-// Static categories matching navbar - NO API CALL
-const staticCategories: Category[] = [
-  { 
-    _id: '1', 
-    name: 'Wooden Frames', 
-    count: 45, 
-    slug: 'wooden', 
-    description: 'Classic wooden frames with natural elegance',
-    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=600&fit=crop&q=80'
-  },
-  { 
-    _id: '2', 
-    name: 'Metal Frames', 
-    count: 32, 
-    slug: 'metal', 
-    description: 'Modern metal frames for contemporary spaces',
-    image: 'https://images.unsplash.com/photo-1582053433976-25c00369fc93?w=600&h=600&fit=crop&q=80'
-  },
-  { 
-    _id: '3', 
-    name: 'Canvas Frames', 
-    count: 28, 
-    slug: 'canvas', 
-    description: 'Canvas art frames for gallery-style display',
-    image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=600&h=600&fit=crop&q=80'
-  },
-  { 
-    _id: '4', 
-    name: 'Vintage Frames', 
-    count: 24, 
-    slug: 'vintage', 
-    description: 'Antique style frames with timeless charm',
-    image: 'https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?w=600&h=600&fit=crop&q=80'
-  },
-  { 
-    _id: '5', 
-    name: 'Modern Frames', 
-    count: 38, 
-    slug: 'modern', 
-    description: 'Contemporary designs for modern interiors',
-    image: 'https://images.unsplash.com/photo-1594369789489-d6f63bd7fa1d?w=600&h=600&fit=crop&q=80'
-  },
-  { 
-    _id: '6', 
-    name: 'Custom Frames', 
-    count: 50, 
-    slug: 'custom', 
-    description: 'Personalized frames made just for you',
-    image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=600&h=600&fit=crop&q=80'
-  },
-];
+// Utility function to handle image errors silently
+const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>, fallbackUrl: string) => {
+  const target = e.currentTarget;
+  
+  // Only switch to fallback if current src is different
+  if (target.src !== fallbackUrl) {
+    target.src = fallbackUrl;
+  }
+  
+  // Only log warnings in development mode
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('Image failed to load, using fallback');
+  }
+};
 
 // IMAGES — Robust Helper
 function getDisplayedImage(product: Product, idx: number): string {
@@ -137,48 +101,82 @@ function hasValidOffer(product: Product): boolean {
   return !!product.offerPrice && product.offerPrice < product.basePrice;
 }
 
+// Default fallback images
+const DEFAULT_CATEGORY_IMAGE = 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=600&fit=crop&q=80';
+const DEFAULT_BANNER_IMAGE = 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1920&h=900&fit=crop&q=80';
+
 // API Functions
-async function getFeaturedProducts(): Promise<Product[]> {
+async function getCategories(): Promise<Category[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-    const res = await fetch(`${baseUrl}/api/products?limit=8&sortBy=featured`, { cache: 'no-store' });
-    if (!res.ok) return [];
+    const res = await fetch('/api/categories?activeOnly=true&limit=6', { 
+      cache: 'no-store' 
+    });
+    if (!res.ok) {
+      console.error('Failed to fetch categories:', res.status);
+      return [];
+    }
     const data = await res.json();
-    return data.products || [];
-  } catch { return []; }
-}
-
-async function getBestSellingProducts(): Promise<Product[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-    const res = await fetch(`${baseUrl}/api/products?limit=8&sortBy=bestselling`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.products || [];
-  } catch { return []; }
-}
-
-async function getNewArrivals(): Promise<Product[]> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-    const res = await fetch(`${baseUrl}/api/products?limit=8&sortBy=newest`, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.products || [];
-  } catch { return []; }
+    return data.categories || [];
+  } catch (error) { 
+    console.error('Error fetching categories:', error);
+    return []; 
+  }
 }
 
 async function getBanners(): Promise<Banner[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-    const res = await fetch(`${baseUrl}/api/banners?active=true`, { cache: 'no-store' });
-    if (!res.ok) return [];
+    const res = await fetch('/api/banners?activeOnly=true&type=hero&limit=3', { 
+      cache: 'no-store' 
+    });
+    if (!res.ok) {
+      console.error('Failed to fetch banners:', res.status);
+      return [];
+    }
     const data = await res.json();
     return data.banners || [];
-  } catch { return []; }
+  } catch (error) { 
+    console.error('Error fetching banners:', error);
+    return []; 
+  }
 }
 
-// HERO BANNER CAROUSEL
+async function getFeaturedProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/products?limit=8&sortBy=featured', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.products || [];
+  } catch (error) { 
+    console.error('Error fetching featured products:', error);
+    return []; 
+  }
+}
+
+async function getBestSellingProducts(): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/products?limit=8&sortBy=bestselling', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.products || [];
+  } catch (error) { 
+    console.error('Error fetching best selling products:', error);
+    return []; 
+  }
+}
+
+async function getNewArrivals(): Promise<Product[]> {
+  try {
+    const res = await fetch('/api/products?limit=8&sortBy=newest', { cache: 'no-store' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.products || [];
+  } catch (error) { 
+    console.error('Error fetching new arrivals:', error);
+    return []; 
+  }
+}
+
+// HERO BANNER CAROUSEL with increased height
 const HeroBanner = ({ banners }: { banners: Banner[] }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -188,10 +186,11 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
       _id: '1',
       title: 'Frame Your Perfect Moments',
       subtitle: 'Premium quality frames for every memory',
-      image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=1920&h=900&fit=crop&q=80',
+      image: DEFAULT_BANNER_IMAGE,
       link: '/products',
-      isActive: true,
-      order: 1
+      linkText: 'Shop Now',
+      displayOrder: 1,
+      isActive: true
     },
     {
       _id: '2',
@@ -199,8 +198,9 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
       subtitle: 'Use code FRAME20 at checkout',
       image: 'https://images.unsplash.com/photo-1582053433976-25c00369fc93?w=1920&h=900&fit=crop&q=80',
       link: '/products?discount=true',
-      isActive: true,
-      order: 2
+      linkText: 'Shop Now',
+      displayOrder: 2,
+      isActive: true
     },
     {
       _id: '3',
@@ -208,15 +208,16 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
       subtitle: 'Explore the latest frame designs',
       image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=1920&h=900&fit=crop&q=80',
       link: '/products?sortBy=newest',
-      isActive: true,
-      order: 3
+      linkText: 'Explore Now',
+      displayOrder: 3,
+      isActive: true
     }
   ];
 
   const activeBanners = banners.length > 0 ? banners : defaultBanners;
 
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (!isAutoPlaying || activeBanners.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % activeBanners.length);
     }, 5000);
@@ -230,7 +231,7 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
   };
 
   return (
-    <section className="relative h-[45vh] sm:h-[50vh] md:h-[60vh] lg:h-[70vh] overflow-hidden">
+    <section className="relative h-[55vh] sm:h-[60vh] md:h-[55vh] lg:h-[85vh] xl:h-[90vh] overflow-hidden">
       {activeBanners.map((banner, index) => (
         <div
           key={banner._id}
@@ -243,37 +244,38 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
               src={banner.image}
               alt={banner.title}
               className="w-full h-full object-cover"
+              onError={(e) => handleImageError(e, DEFAULT_BANNER_IMAGE)}
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
           </div>
 
           <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center">
-            <div className={`max-w-2xl space-y-4 transition-all duration-700 delay-200 ${
+            <div className={`max-w-2xl space-y-4 md:space-y-6 transition-all duration-700 delay-200 ${
               index === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
             }`}>
               <span className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium border border-white/20">
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
                 Premium Quality Frames
               </span>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-tight">
                 {banner.title}
               </h1>
               {banner.subtitle && (
-                <p className="text-base sm:text-lg text-white/80">{banner.subtitle}</p>
+                <p className="text-lg sm:text-xl md:text-2xl text-white/80 max-w-2xl">{banner.subtitle}</p>
               )}
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-wrap gap-3 pt-2 md:pt-4">
                 <Link
                   href={banner.link || '/products'}
-                  className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl text-sm sm:text-base"
+                  className="group inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl md:rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl text-base sm:text-lg"
                 >
-                  Shop Now
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  {banner.linkText || 'Shop Now'}
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
                   href="/products"
-                  className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold border border-white/30 transition-all text-sm sm:text-base"
+                  className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl md:rounded-2xl font-bold border border-white/30 transition-all text-base sm:text-lg"
                 >
-                  <Play className="w-4 h-4" />
+                  <Play className="w-5 h-5" />
                   Explore All
                 </Link>
               </div>
@@ -282,34 +284,38 @@ const HeroBanner = ({ banners }: { banners: Banner[] }) => {
         </div>
       ))}
 
-      {/* Navigation */}
-      <button
-        onClick={() => goToSlide((currentSlide - 1 + activeBanners.length) % activeBanners.length)}
-        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-full transition-all border border-white/20"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button
-        onClick={() => goToSlide((currentSlide + 1) % activeBanners.length)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-full transition-all border border-white/20"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-
-      {/* Dots */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-        {activeBanners.map((_, index) => (
+      {/* Navigation - Only show if more than 1 banner */}
+      {activeBanners.length > 1 && (
+        <>
           <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`transition-all duration-300 ${
-              index === currentSlide
-                ? 'w-8 h-2.5 bg-white rounded-full'
-                : 'w-2.5 h-2.5 bg-white/50 hover:bg-white/80 rounded-full'
-            }`}
-          />
-        ))}
-      </div>
+            onClick={() => goToSlide((currentSlide - 1 + activeBanners.length) % activeBanners.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-full transition-all border border-white/20"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button
+            onClick={() => goToSlide((currentSlide + 1) % activeBanners.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-full transition-all border border-white/20"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+
+          {/* Dots */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+            {activeBanners.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`transition-all duration-300 ${
+                  index === currentSlide
+                    ? 'w-10 h-3 bg-white rounded-full'
+                    : 'w-3 h-3 bg-white/50 hover:bg-white/80 rounded-full'
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 };
@@ -345,68 +351,126 @@ const WhyChooseUs = () => (
   </section>
 );
 
-// CATEGORY GRID
-const CategoryGrid = () => (
-  <section className="py-10 md:py-12 relative overflow-hidden" id="categories">
-    <div className="absolute inset-0 bg-gradient-to-b from-white via-blue-50/20 to-white" />
-    
-    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center mb-8 md:mb-10">
-        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium mb-3">
-          <Sparkles className="w-3 h-3" />
-          Explore Collections
-        </span>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 mb-2">
-          Shop By <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Category</span>
-        </h2>
-        <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto">
-          Find the perfect frame style for your space
-        </p>
-      </div>
+// CATEGORY GRID with fixed error
+const CategoryGrid = ({ categories }: { categories: Category[] }) => {
+  // Default categories if API fails
+  const defaultCategories: Category[] = [
+    { 
+      _id: '1', 
+      name: 'Wooden Frames', 
+      productCount: 45, 
+      slug: 'wooden', 
+      description: 'Classic wooden frames with natural elegance',
+      image: DEFAULT_CATEGORY_IMAGE
+    },
+    { 
+      _id: '2', 
+      name: 'Metal Frames', 
+      productCount: 32, 
+      slug: 'metal', 
+      description: 'Modern metal frames for contemporary spaces',
+      image: 'https://images.unsplash.com/photo-1582053433976-25c00369fc93?w=600&h=600&fit=crop&q=80'
+    },
+    { 
+      _id: '3', 
+      name: 'Canvas Frames', 
+      productCount: 28, 
+      slug: 'canvas', 
+      description: 'Canvas art frames for gallery-style display',
+      image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=600&h=600&fit=crop&q=80'
+    },
+    { 
+      _id: '4', 
+      name: 'Custom Frames', 
+      productCount: 50, 
+      slug: 'custom', 
+      description: 'Personalized frames made just for you',
+      image: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=600&h=600&fit=crop&q=80'
+    },
+    { 
+      _id: '5', 
+      name: 'Modern Frames', 
+      productCount: 38, 
+      slug: 'modern', 
+      description: 'Contemporary designs for modern interiors',
+      image: 'https://images.unsplash.com/photo-1594369789489-d6f63bd7fa1d?w=600&h=600&fit=crop&q=80'
+    },
+    { 
+      _id: '6', 
+      name: 'Vintage Frames', 
+      productCount: 24, 
+      slug: 'vintage', 
+      description: 'Antique style frames with timeless charm',
+      image: 'https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?w=600&h=600&fit=crop&q=80'
+    },
+  ];
+
+  const displayCategories = categories.length > 0 ? categories : defaultCategories;
+
+  return (
+    <section className="py-10 md:py-12 relative overflow-hidden" id="categories">
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-blue-50/20 to-white" />
       
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        {staticCategories.map((category) => (
-          <Link
-            key={category._id}
-            href={`/products?category=${category.slug}`}
-            className="group relative overflow-hidden rounded-xl md:rounded-2xl bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-2"
-          >
-            <div className="aspect-[4/3] relative overflow-hidden">
-              <img
-                src={category.image}
-                alt={category.name}
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
-              
-              <div className="absolute inset-0 flex flex-col justify-end p-3 md:p-4">
-                <div className="bg-white/10 backdrop-blur-sm rounded-lg md:rounded-xl p-2.5 md:p-3 border border-white/20">
-                  <h3 className="font-bold text-white text-sm md:text-base mb-0.5">{category.name}</h3>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-white/80">{category.count}+ items</p>
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-blue-500 transition-colors duration-300">
-                      <ArrowRight className="w-3 h-3 text-white" />
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8 md:mb-10">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium mb-3">
+            <Sparkles className="w-3 h-3" />
+            Explore Collections
+          </span>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 mb-2">
+            Shop By <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Category</span>
+          </h2>
+          <p className="text-gray-600 text-sm md:text-base max-w-xl mx-auto">
+            Find the perfect frame style for your space
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          {displayCategories.map((category) => (
+            <Link
+              key={category._id}
+              href={`/products?category=${encodeURIComponent(category.name)}`}
+              className="group relative overflow-hidden rounded-xl md:rounded-2xl bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-2"
+            >
+              <div className="aspect-[4/3] relative overflow-hidden">
+                <img
+                  src={category.image}
+                  alt={category.name}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  onError={(e) => handleImageError(e, DEFAULT_CATEGORY_IMAGE)}
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
+                
+                <div className="absolute inset-0 flex flex-col justify-end p-3 md:p-4">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-lg md:rounded-xl p-2.5 md:p-3 border border-white/20">
+                    <h3 className="font-bold text-white text-sm md:text-base mb-0.5">{category.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-white/80">{category.productCount}+ items</p>
+                      <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-blue-500 transition-colors duration-300">
+                        <ArrowRight className="w-3 h-3 text-white" />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
+          ))}
+        </div>
+        
+        <div className="text-center mt-6 md:mt-8">
+          <Link
+            href="/products"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold transition-all duration-300 shadow-md hover:shadow-lg text-sm"
+          >
+            View All Products
+            <ArrowRight className="w-4 h-4" />
           </Link>
-        ))}
+        </div>
       </div>
-      
-      <div className="text-center mt-6 md:mt-8">
-        <Link
-          href="/products"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold transition-all duration-300 shadow-md hover:shadow-lg text-sm"
-        >
-          View All Products
-          <ArrowRight className="w-4 h-4" />
-        </Link>
-      </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // PRODUCT CARD
 const ProductCard = ({ 
@@ -438,7 +502,7 @@ const ProductCard = ({
           alt={product.title}
           loading="lazy"
           className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => (e.currentTarget.src = '/placeholder-image.png')}
+          onError={(e) => handleImageError(e, '/placeholder-image.png')}
         />
         {totalImages > 1 && (
           <>
@@ -613,6 +677,7 @@ export default function Home() {
   const [bestSellingProducts, setBestSellingProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
   
@@ -622,18 +687,22 @@ export default function Home() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [featured, bestSelling, newArr, bannerData] = await Promise.all([
+        // Fetch all data in parallel
+        const [featured, bestSelling, newArr, bannerData, categoryData] = await Promise.all([
           getFeaturedProducts(),
           getBestSellingProducts(),
           getNewArrivals(),
-          getBanners()
+          getBanners(),
+          getCategories()
         ]);
         
         setFeaturedProducts(featured);
         setBestSellingProducts(bestSelling);
         setNewArrivals(newArr);
         setBanners(bannerData);
+        setCategories(categoryData);
         
+        // Initialize image indexes
         const initIndexes: { [key: string]: number } = {};
         [...featured, ...bestSelling, ...newArr].forEach((p) => {
           initIndexes[p._id] = 0;
@@ -683,12 +752,12 @@ export default function Home() {
   }, [addToCart]);
 
   return (
-    <div className="min-h-screen bg-white pt-20 md:pt-28">
+    <div className="min-h-screen bg-white pt-15 md:pt-25">
       <Navbar />
       <main className="mt-0">
         <HeroBanner banners={banners} />
         <WhyChooseUs />
-        <CategoryGrid />
+        <CategoryGrid categories={categories} />
         <ProductSection
           title="Featured Collection"
           subtitle="Handpicked masterpieces that redefine elegance"
