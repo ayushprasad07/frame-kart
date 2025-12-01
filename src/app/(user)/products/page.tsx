@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   ChevronLeft, ChevronRight, Filter, X, Search, SlidersHorizontal, 
   Heart, ShoppingCart, Star, Sparkles, Grid3X3, LayoutGrid, 
@@ -81,9 +81,16 @@ function getDisplayPrice(product: Product): number {
   return hasValidOffer(product) ? product.offerPrice! : product.basePrice;
 }
 
-export default function ProductsContent() {
+// Helper to get URL params without useSearchParams
+function getSearchParams(): URLSearchParams {
+  if (typeof window !== 'undefined') {
+    return new URLSearchParams(window.location.search);
+  }
+  return new URLSearchParams();
+}
+
+export default function ProductsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { addToCart } = useCart();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -100,24 +107,43 @@ export default function ProductsContent() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'compact'>('grid');
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize filters from URL params
+  // Initialize filters from URL params without useSearchParams
   useEffect(() => {
-    if (searchParams) {
-      setFilters({
-        category: searchParams.get('category') || 'all',
-        search: searchParams.get('search') || '',
-        minPrice: searchParams.get('minPrice') || '',
-        maxPrice: searchParams.get('maxPrice') || '',
-        sort: searchParams.get('sort') || 'newest',
-      });
-    }
-  }, [searchParams]);
+    if (typeof window === 'undefined') return;
+    
+    const params = new URLSearchParams(window.location.search);
+    setFilters({
+      category: params.get('category') || 'all',
+      search: params.get('search') || '',
+      minPrice: params.get('minPrice') || '',
+      maxPrice: params.get('maxPrice') || '',
+      sort: params.get('sort') || 'newest',
+    });
+    setInitialized(true);
+  }, []);
+
+  // Update URL when filters change
+  useEffect(() => {
+    if (!initialized) return;
+    
+    const params = new URLSearchParams();
+    if (filters.category && filters.category !== 'all') params.set('category', filters.category);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.minPrice) params.set('minPrice', filters.minPrice);
+    if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
+    if (filters.sort && filters.sort !== 'newest') params.set('sort', filters.sort);
+    
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [filters, initialized]);
 
   useEffect(() => {
+    if (!initialized) return;
     fetchProducts();
     fetchCategories();
-  }, [filters]);
+  }, [filters, initialized]);
 
   const fetchProducts = async () => {
     setLoading(true);
