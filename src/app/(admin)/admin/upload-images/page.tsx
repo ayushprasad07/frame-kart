@@ -18,8 +18,6 @@ import {
   Save,
   Loader2,
   Upload,
-  Package,
-  TrendingUp
 } from 'lucide-react';
 
 interface Banner {
@@ -138,8 +136,6 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
     try {
       const endpoint = activeTab === 'banners' ? '/api/banners' : '/api/categories';
       const method = editingItem ? 'PUT' : 'POST';
-      
-      // FIXED: For PUT requests, include ID in URL
       const url = editingItem ? `${endpoint}?id=${editingItem._id}` : endpoint;
       
       const res = await fetch(url, {
@@ -193,14 +189,13 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
   const toggleActive = async (id: string, currentStatus: boolean) => {
     try {
       const endpoint = activeTab === 'banners' ? '/api/banners' : '/api/categories';
-      const formData = new FormData();
-      formData.append('id', id);
-      formData.append('isActive', (!currentStatus).toString());
+      const formDataToSend = new FormData();
+      formDataToSend.append('id', id);
+      formDataToSend.append('isActive', (!currentStatus).toString());
       
-      // FIXED: Include ID in URL for PUT request
       const res = await fetch(`${endpoint}?id=${id}`, {
         method: 'PUT',
-        body: formData
+        body: formDataToSend
       });
       
       const data = await res.json();
@@ -227,7 +222,6 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
       try {
         const endpoint = activeTab === 'banners' ? '/api/banners' : '/api/categories';
         
-        // FIXED: Create FormData for PUT requests
         const formData1 = new FormData();
         formData1.append('id', id);
         formData1.append('displayOrder', newOrder.toString());
@@ -269,24 +263,27 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
 
   // Filter items
   const filteredItems = (activeTab === 'banners' ? banners : categories).filter((item: any) => {
-    const matchesSearch = item.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.subtitle?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'active' && item.isActive) ||
-                         (filterStatus === 'inactive' && !item.isActive);
+    const matchesSearch =
+      item.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.subtitle?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+
+    const matchesStatus =
+      filterStatus === 'all' || 
+      (filterStatus === 'active' && item.isActive) ||
+      (filterStatus === 'inactive' && !item.isActive);
     
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate stats
+  // Stats (no total products for categories)
   const stats = {
     total: filteredItems.length,
     active: filteredItems.filter((item: any) => item.isActive).length,
-    totalProducts: activeTab === 'categories' 
-      ? categories.reduce((sum, cat) => sum + cat.productCount, 0)
-      : banners.filter(b => b.type === 'hero').length
+    heroCount: activeTab === 'banners'
+      ? banners.filter(b => b.type === 'hero').length
+      : 0
   };
 
   if (loading && !showForm) {
@@ -306,7 +303,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Image Management</h1>
-          <p className="text-gray-600 mt-1">Manage homepage banners and product categories</p>
+          <p className="text-gray-600 mt-1">
+            Manage homepage banners and product categories
+          </p>
         </div>
         <button
           onClick={() => {
@@ -316,7 +315,7 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
             setPreview(null);
             setShowForm(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+          className="inline-flex items-center gap-2 px-4 py-3 bg-neutral-900 text-white font-medium rounded-xl cursor-pointer transition-all shadow-lg hover:shadow-xl"
         >
           <Plus className="w-5 h-5" />
           Add New {activeTab === 'banners' ? 'Banner' : 'Category'}
@@ -355,51 +354,64 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+      {/* Stats (2 cards for categories, 3 for banners originally, now unified layout with condition) */}
+      <div
+        className={`grid gap-4 ${
+          activeTab === 'banners' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'
+        }`}
+      >
+        {/* Total */}
+        <div className="h-full flex items-center bg-white rounded-2xl p-5 border border-gray-200 shadow-sm min-h-[120px]">
+          <div className="flex items-center justify-between w-full">
             <div>
               <p className="text-sm font-medium text-gray-600">
                 Total {activeTab === 'banners' ? 'Banners' : 'Categories'}
               </p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {stats.total}
+              </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-xl">
-              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-cyan-500 rounded"></div>
+              {activeTab === 'banners' ? (
+                <Image className="w-6 h-6 text-blue-600" />
+              ) : (
+                <Folder className="w-6 h-6 text-blue-600" />
+              )}
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
+
+        {/* Active */}
+        <div className="h-full flex items-center bg-white rounded-2xl p-5 border border-gray-200 shadow-sm min-h-[120px]">
+          <div className="flex items-center justify-between w-full">
             <div>
               <p className="text-sm font-medium text-gray-600">Active</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.active}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {stats.active}
+              </p>
             </div>
             <div className="p-3 bg-green-100 rounded-xl">
               <Eye className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
-                {activeTab === 'banners' ? 'Hero Banners' : 'Total Products'}
-              </p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalProducts}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-xl">
-              {activeTab === 'banners' ? (
-                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded"></div>
-              ) : (
-                <Package className="w-6 h-6 text-purple-600" />
-              )}
+
+        {/* Hero banners only for banners tab */}
+        {activeTab === 'banners' && (
+          <div className="h-full flex items-center bg-white rounded-2xl p-5 border border-gray-200 shadow-sm min-h-[120px]">
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Hero Banners</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {stats.heroCount}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-xl">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded" />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -446,7 +458,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
             <Filter className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-xl font-semibold text-gray-900">No {activeTab} found</h3>
-          <p className="text-gray-600 mt-1 mb-6">Try adjusting your filters or add a new {activeTab.slice(0, -1)}</p>
+          <p className="text-gray-600 mt-1 mb-6">
+            Try adjusting your filters or add a new {activeTab.slice(0, -1)}
+          </p>
           <button
             onClick={() => {
               setEditingItem(null);
@@ -466,27 +480,34 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
               className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-shadow"
             >
               {/* Image */}
-              <div className={`relative overflow-hidden ${
-                activeTab === 'banners' ? 'aspect-[16/9]' : 'aspect-[4/3]'
-              }`}>
+              <div
+                className={`relative overflow-hidden ${
+                  activeTab === 'banners' ? 'aspect-[16/9]' : 'aspect-[4/3]'
+                }`}
+              >
                 <img
                   src={item.image}
                   alt={item.title || item.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=400&fit=crop&q=80';
+                    e.currentTarget.src =
+                      'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=400&fit=crop&q=80';
                   }}
                 />
                 <div className="absolute top-3 right-3 flex gap-2">
                   <button
                     onClick={() => toggleActive(item._id, item.isActive)}
                     className={`p-2 rounded-full backdrop-blur-sm ${
-                      item.isActive 
-                        ? 'bg-green-500/20 text-green-600 hover:bg-green-500/30' 
+                      item.isActive
+                        ? 'bg-green-500/20 text-green-600 hover:bg-green-500/30'
                         : 'bg-red-500/20 text-red-600 hover:bg-red-500/30'
                     }`}
                   >
-                    {item.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    {item.isActive ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
                 {activeTab === 'categories' && (
@@ -496,19 +517,21 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                 )}
                 <div className="absolute bottom-3 left-3 right-3 flex gap-2">
                   {activeTab === 'banners' && (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      item.type === 'hero' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-purple-500 text-white'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        item.type === 'hero'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-purple-500 text-white'
+                      }`}
+                    >
                       {item.type}
                     </span>
                   )}
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    item.isActive 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-gray-500 text-white'
-                  }`}>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      item.isActive ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'
+                    }`}
+                  >
                     {item.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -519,13 +542,13 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                 <h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-1">
                   {item.title || item.name}
                 </h3>
-                
+
                 {activeTab === 'banners' && item.subtitle && (
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                     {item.subtitle}
                   </p>
                 )}
-                
+
                 {activeTab === 'categories' && (
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                     {item.description}
@@ -570,7 +593,7 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                       <ArrowDown className="w-4 h-4" />
                     </button>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
@@ -608,13 +631,13 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingItem ? 'Edit' : 'Add New'} {activeTab === 'banners' ? 'Banner' : 'Category'}
+                  {editingItem ? 'Edit' : 'Add New'}{' '}
+                  {activeTab === 'banners' ? 'Banner' : 'Category'}
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  {editingItem 
-                    ? `Update ${activeTab.slice(0, -1)} details` 
-                    : `Create a new ${activeTab.slice(0, -1)}`
-                  }
+                  {editingItem
+                    ? `Update ${activeTab.slice(0, -1)} details`
+                    : `Create a new ${activeTab.slice(0, -1)}`}
                 </p>
               </div>
               <button
@@ -636,7 +659,7 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
               {/* Image Upload */}
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  {activeTab === 'banners' ? 'Banner' : 'Category'} Image *
+                  {activeTab === 'banners' ? 'Banner' : 'Category'} Image{' '}
                   {!editingItem && <span className="text-red-500 ml-1">*</span>}
                 </label>
                 <div className="relative">
@@ -648,7 +671,8 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                           alt="Preview"
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=400&fit=crop&q=80';
+                            e.currentTarget.src =
+                              'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=600&h=400&fit=crop&q=80';
                           }}
                         />
                       </div>
@@ -665,7 +689,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button
                           type="button"
-                          onClick={() => document.getElementById('file-input')?.click()}
+                          onClick={() =>
+                            document.getElementById('file-input')?.click()
+                          }
                           className="p-3 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors"
                         >
                           <Upload className="w-5 h-5 text-gray-700" />
@@ -674,9 +700,11 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     </div>
                   ) : (
                     <div className="aspect-video rounded-xl border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
-                      <div 
+                      <div
                         className="flex flex-col items-center justify-center h-full p-6 cursor-pointer"
-                        onClick={() => document.getElementById('file-input')?.click()}
+                        onClick={() =>
+                          document.getElementById('file-input')?.click()
+                        }
                       >
                         <div className="p-4 mb-3 bg-gray-100 rounded-full">
                           <Upload className="w-6 h-6 text-gray-400" />
@@ -711,7 +739,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                   />
                 </div>
                 {!editingItem && !preview && (
-                  <p className="text-sm text-red-500">Image is required for new items</p>
+                  <p className="text-sm text-red-500">
+                    Image is required for new items
+                  </p>
                 )}
               </div>
 
@@ -726,7 +756,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                       type="text"
                       required
                       value={formData.title || ''}
-                      onChange={(e) => setFormData({...formData, title: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter banner title"
                     />
@@ -739,7 +771,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     <input
                       type="text"
                       value={formData.subtitle || ''}
-                      onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({ ...formData, subtitle: e.target.value })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter banner subtitle"
                     />
@@ -753,7 +787,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                       <input
                         type="text"
                         value={formData.link || ''}
-                        onChange={(e) => setFormData({...formData, link: e.target.value})}
+                        onChange={(e) =>
+                          setFormData({ ...formData, link: e.target.value })
+                        }
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="/products"
                       />
@@ -765,7 +801,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                       <input
                         type="text"
                         value={formData.linkText || 'Shop Now'}
-                        onChange={(e) => setFormData({...formData, linkText: e.target.value})}
+                        onChange={(e) =>
+                          setFormData({ ...formData, linkText: e.target.value })
+                        }
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Shop Now"
                       />
@@ -781,7 +819,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     <select
                       required
                       value={formData.name || ''}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select a category</option>
@@ -800,7 +840,12 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     <textarea
                       required
                       value={formData.description || ''}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value
+                        })
+                      }
                       rows={3}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Describe this category..."
@@ -818,7 +863,9 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     </label>
                     <select
                       value={formData.type || 'hero'}
-                      onChange={(e) => setFormData({...formData, type: e.target.value})}
+                      onChange={(e) =>
+                        setFormData({ ...formData, type: e.target.value })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="hero">Hero Banner</option>
@@ -826,7 +873,7 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     </select>
                   </div>
                 )}
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Display Order
@@ -835,18 +882,28 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                     type="number"
                     min="1"
                     value={formData.displayOrder || 1}
-                    onChange={(e) => setFormData({...formData, displayOrder: parseInt(e.target.value) || 1})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        displayOrder: parseInt(e.target.value) || 1
+                      })
+                    }
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Status
                   </label>
                   <select
                     value={formData.isActive?.toString() || 'true'}
-                    onChange={(e) => setFormData({...formData, isActive: e.target.value === 'true'})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isActive: e.target.value === 'true'
+                      })
+                    }
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="true">Active</option>
@@ -884,7 +941,8 @@ export default function ImageUpload({ type = 'banners' }: ImageUploadProps) {
                   ) : (
                     <>
                       <Save className="w-5 h-5" />
-                      {editingItem ? 'Update' : 'Create'} {activeTab === 'banners' ? 'Banner' : 'Category'}
+                      {editingItem ? 'Update' : 'Create'}{' '}
+                      {activeTab === 'banners' ? 'Banner' : 'Category'}
                     </>
                   )}
                 </button>
