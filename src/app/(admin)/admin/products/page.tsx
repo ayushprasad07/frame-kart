@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit, Trash, ChevronLeft, ChevronRight, Plus, Package, Search, Filter, MoreVertical } from 'lucide-react';
+import { 
+  Edit, Trash, ChevronLeft, ChevronRight, Plus, Package, 
+  Search, Filter, TrendingUp, AlertTriangle, Eye, MoreHorizontal 
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Product {
@@ -33,6 +36,7 @@ export default function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentImages, setCurrentImages] = useState<{ [key: string]: number }>({});
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -61,7 +65,6 @@ export default function AdminProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) return;
-
     try {
       const res = await fetch(`/api/products/delete/${id}`, { method: 'DELETE' });
       if (!res.ok) toast.error('Failed to delete product');
@@ -97,17 +100,14 @@ export default function AdminProductsPage() {
     });
   };
 
-  // Filter products based on search and filters
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'active' && product.isActive) ||
                          (statusFilter === 'inactive' && !product.isActive);
-
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -131,20 +131,37 @@ export default function AdminProductsPage() {
     return null;
   };
 
+  const getDiscountPercentage = (basePrice: number, offerPrice?: number) => {
+    if (!offerPrice || offerPrice >= basePrice) return 0;
+    return Math.round(((basePrice - offerPrice) / basePrice) * 100);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-8 px-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 pt-8 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-slate-200 rounded w-64 mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex bg-white rounded-xl shadow-lg overflow-hidden">
-                  <div className="w-1/2 h-56 bg-slate-200"></div>
-                  <div className="w-1/2 p-6 space-y-4">
-                    <div className="h-6 bg-slate-200 rounded"></div>
-                    <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                    <div className="h-8 bg-slate-200 rounded w-1/2"></div>
+          <div className="animate-pulse space-y-8">
+            <div className="flex justify-between items-center">
+              <div className="space-y-2">
+                <div className="h-8 bg-slate-200/80 rounded-lg w-64"></div>
+                <div className="h-4 bg-slate-200/60 rounded w-48"></div>
+              </div>
+              <div className="h-12 w-36 bg-slate-200/80 rounded-xl"></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-32 bg-white/80 rounded-2xl shadow-sm"></div>
+              ))}
+            </div>
+            <div className="h-20 bg-white/80 rounded-2xl shadow-sm"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  <div className="h-52 bg-slate-200/60"></div>
+                  <div className="p-5 space-y-3">
+                    <div className="h-5 bg-slate-200/80 rounded w-3/4"></div>
+                    <div className="h-4 bg-slate-200/60 rounded w-1/2"></div>
+                    <div className="h-6 bg-slate-200/80 rounded w-1/3"></div>
                   </div>
                 </div>
               ))}
@@ -156,211 +173,307 @@ export default function AdminProductsPage() {
   }
 
   return (
-    <div className="min-h-screenpt-8 px-6">
-      <div className="max-w-[1200px] mx-auto">
-        {/* Enhanced Header */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 pt-8 px-4 md:px-6 pb-12">
+      <div className="max-w-[1400px] mx-auto">
+        {/* Header Section */}
         <motion.div
-          className="relative mb-8"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
+          transition={{ duration: 0.5 }}
+          className="mb-8"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Product Management</h1>
-              <p className="text-slate-600">Manage your product catalog and inventory</p>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-200">
+                  <Package className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
+                  Product Management
+                </h1>
+              </div>
+              <p className="text-slate-500 ml-14">Manage your product catalog and inventory</p>
             </div>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/admin/products/add')}
-              className="mt-4 lg:mt-0 inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition-all duration-300 hover:shadow-xl"
+              className="group inline-flex items-center gap-2.5 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg shadow-slate-300 transition-all duration-300"
             >
-              <Plus size={20} />
-              Add Product
-            </button>
+              <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+              Add New Product
+            </motion.button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <Package className="w-6 h-6 text-blue-600" />
+          {/* Stats Cards - Modern Glassmorphism Style */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="relative overflow-hidden bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md hover:border-slate-300/50 transition-all duration-300"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full -translate-y-16 translate-x-16 opacity-60"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg shadow-blue-200">
+                  <Package className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Total Products</p>
-                  <p className="text-2xl font-bold text-slate-900">{totalProducts}</p>
+                  <p className="text-sm font-medium text-slate-500">Total Products</p>
+                  <p className="text-3xl font-bold text-slate-900">{totalProducts}</p>
                 </div>
               </div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <Filter className="w-6 h-6 text-green-600" />
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="relative overflow-hidden bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md hover:border-slate-300/50 transition-all duration-300"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-green-100 rounded-full -translate-y-16 translate-x-16 opacity-60"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3.5 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl shadow-lg shadow-emerald-200">
+                  <TrendingUp className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Active Products</p>
-                  <p className="text-2xl font-bold text-slate-900">{activeProducts}</p>
+                  <p className="text-sm font-medium text-slate-500">Active Products</p>
+                  <p className="text-3xl font-bold text-slate-900">{activeProducts}</p>
                 </div>
               </div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-50 rounded-lg">
-                  <Package className="w-6 h-6 text-amber-600" />
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="relative overflow-hidden bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200/50 hover:shadow-md hover:border-slate-300/50 transition-all duration-300"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full -translate-y-16 translate-x-16 opacity-60"></div>
+              <div className="relative flex items-center gap-4">
+                <div className="p-3.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg shadow-amber-200">
+                  <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Low Stock</p>
-                  <p className="text-2xl font-bold text-slate-900">{lowStockProducts}</p>
+                  <p className="text-sm font-medium text-slate-500">Low Stock</p>
+                  <p className="text-3xl font-bold text-slate-900">{lowStockProducts}</p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Enhanced Search and Filters */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 mb-8">
-            <div className="flex flex-col md:flex-row gap-4">
+          {/* Search and Filters - Modern Style */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/70 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-slate-200/50 mb-8"
+          >
+            <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 p-1.5 bg-slate-100 rounded-lg">
+                  <Search className="text-slate-400 w-4 h-4" />
+                </div>
                 <input
                   type="text"
                   placeholder="Search products by name, category, or SKU..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full pl-14 pr-4 py-3.5 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 text-sm transition-all duration-200 placeholder:text-slate-400"
                 />
               </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === 'all' ? 'All Categories' : category}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <div className="flex gap-3">
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="pl-10 pr-8 py-3.5 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 text-sm appearance-none cursor-pointer transition-all duration-200"
+                  >
+                    {categories.map(category => (
+                      <option key={category} value={category}>
+                        {category === 'all' ? 'All Categories' : category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-3.5 bg-slate-50/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 text-sm appearance-none cursor-pointer transition-all duration-200"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
 
-        {/* Products Grid - Keeping Original Card Layout */}
+        {/* Products Grid - Modern Card Design */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <AnimatePresence>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <AnimatePresence mode="popLayout">
               {filteredProducts.map((product, index) => {
                 const imageIndex = currentImages[product._id] || 0;
                 const imagesLength = product.images?.length || 0;
                 const productImage = getProductImage(product, imageIndex);
                 const showCarousel = imagesLength > 1;
+                const discount = getDiscountPercentage(product.basePrice, product.offerPrice);
 
                 return (
                   <motion.div
                     key={product._id}
-                    className="flex bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-slate-200"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    onMouseEnter={() => setHoveredCard(product._id)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    className="group bg-white rounded-2xl shadow-sm border border-slate-200/50 overflow-hidden hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-300/50 transition-all duration-500"
                   >
-                    {/* Left: image carousel - Original Layout */}
-                    <div className="relative w-1/2 h-56 group">
+                    {/* Image Section */}
+                    <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
                       {productImage ? (
                         <>
                           <Image
                             src={productImage}
                             alt={`${product.title} image ${imageIndex + 1}`}
                             fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                            priority
+                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          
                           {showCarousel && (
                             <>
-                              <button
+                              <motion.button
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: hoveredCard === product._id ? 1 : 0, x: 0 }}
                                 onClick={(e) => prevImage(product._id, e)}
-                                aria-label="Previous Image"
-                                className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 transition opacity-0 group-hover:opacity-100"
+                                className="absolute top-1/2 left-3 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200"
                               >
-                                <ChevronLeft size={18} />
-                              </button>
-                              <button
+                                <ChevronLeft size={18} className="text-slate-700" />
+                              </motion.button>
+                              <motion.button
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: hoveredCard === product._id ? 1 : 0, x: 0 }}
                                 onClick={(e) => nextImage(product._id, e)}
-                                aria-label="Next Image"
-                                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 transition opacity-0 group-hover:opacity-100"
+                                className="absolute top-1/2 right-3 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-all duration-200"
                               >
-                                <ChevronRight size={18} />
-                              </button>
+                                <ChevronRight size={18} className="text-slate-700" />
+                              </motion.button>
+                              
+                              {/* Image Dots Indicator */}
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                {product.images.map((_, idx) => (
+                                  <span
+                                    key={idx}
+                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
+                                      idx === imageIndex ? 'bg-white w-4' : 'bg-white/50'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
                             </>
                           )}
                         </>
                       ) : (
-                        <div className="w-full h-56 bg-slate-100 flex items-center justify-center text-slate-400">
-                          <Package className="w-12 h-12" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Package className="w-16 h-16 text-slate-300" />
                         </div>
                       )}
-                    </div>
 
-                    {/* Right: product info - Original Layout */}
-                    <div className="relative w-1/2 p-6 flex flex-col justify-between">
-                      {/* Edit/Delete Icons */}
-                      <div className="absolute top-3 right-3 flex space-x-2 z-20">
+                      {/* Badges */}
+                      <div className="absolute top-3 left-3 flex flex-col gap-2">
+                        {discount > 0 && (
+                          <span className="px-2.5 py-1 bg-rose-500 text-white text-xs font-semibold rounded-lg shadow-lg">
+                            -{discount}%
+                          </span>
+                        )}
+                        {product.isActive === false && (
+                          <span className="px-2.5 py-1 bg-slate-800 text-white text-xs font-medium rounded-lg">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Quick Actions */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: hoveredCard === product._id ? 1 : 0, y: 0 }}
+                        className="absolute top-3 right-3 flex gap-2"
+                      >
                         <button
                           onClick={() => router.push(`/admin/products/edit/${product._id}`)}
-                          className="flex items-center cursor-pointer justify-center w-8 h-8 bg-black text-white rounded-md hover:bg-slate-800 transition"
-                          aria-label={`Edit ${product.title}`}
+                          className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:bg-indigo-500 hover:text-white transition-all duration-200"
                         >
                           <Edit size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(product._id)}
-                          className="flex items-center cursor-pointer justify-center w-8 h-8 bg-black text-white rounded-md hover:bg-slate-800 transition"
-                          aria-label={`Delete ${product.title}`}
+                          className="p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg hover:bg-rose-500 hover:text-white transition-all duration-200"
                         >
                           <Trash size={16} />
                         </button>
-                      </div>
+                      </motion.div>
+                    </div>
 
-                      <div>
-                        <h2
-                          className="text-xl font-bold text-slate-900 truncate max-w-full"
-                          title={product.title}
-                        >
-                          {product.title}
-                        </h2>
-                        <p
-                          className="text-sm text-slate-600 mt-1 mb-3 truncate max-w-full"
-                          title={product.category}
-                        >
-                          Category: {product.category}
-                        </p>
-                        <div className="flex items-center gap-2 text-slate-500">
-                          <span className='line-through'>₹{product.basePrice?.toLocaleString() ?? 'N/A'}</span>
-                          {product.offerPrice && product.offerPrice < product.basePrice && (
-                            <span className="text-slate-800 font-semibold text-lg text-base">
-                              ₹{product.offerPrice.toLocaleString()}
-                            </span>
-                          )}
+                    {/* Content Section */}
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h2 className="text-lg font-semibold text-slate-900 truncate mb-1" title={product.title}>
+                            {product.title}
+                          </h2>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                            {product.category}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="mt-auto text-xs text-slate-500 space-y-1">
-                        {product.sku && <div>SKU: {product.sku}</div>}
-                        {typeof product.stockQuantity === 'number' && (
-                          <div>Stock: {product.stockQuantity}</div>
+                      <div className="flex items-baseline gap-2 mb-4">
+                        {product.offerPrice && product.offerPrice < product.basePrice ? (
+                          <>
+                            <span className="text-2xl font-bold text-slate-900">
+                              ₹{product.offerPrice.toLocaleString()}
+                            </span>
+                            <span className="text-sm text-slate-400 line-through">
+                              ₹{product.basePrice?.toLocaleString()}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-2xl font-bold text-slate-900">
+                            ₹{product.basePrice?.toLocaleString() ?? 'N/A'}
+                          </span>
                         )}
+                      </div>
+
+                      {/* Meta Info */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          {product.sku && (
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium">SKU:</span> {product.sku}
+                            </span>
+                          )}
+                          {typeof product.stockQuantity === 'number' && (
+                            <span className={`flex items-center gap-1 ${product.stockQuantity < 10 ? 'text-amber-600' : ''}`}>
+                              <span className="font-medium">Stock:</span> {product.stockQuantity}
+                            </span>
+                          )}
+                        </div>
                         {typeof product.isActive === 'boolean' && (
-                          <div className={product.isActive ? 'text-green-600' : 'text-red-600'}>
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                            product.isActive ? 'text-emerald-600' : 'text-slate-400'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              product.isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                            }`}></span>
                             {product.isActive ? 'Active' : 'Inactive'}
-                          </div>
+                          </span>
                         )}
                       </div>
                     </div>
@@ -371,26 +484,31 @@ export default function AdminProductsPage() {
           </div>
         ) : (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20 bg-white rounded-lg shadow-md max-w-md mx-auto border border-slate-200"
+            className="flex flex-col items-center justify-center py-20 px-6"
           >
-            <div className="text-center py-5 px-5">
-              <div className="text-slate-400 text-6xl mb-4">📦</div>
-              <p className="text-slate-600 text-lg font-medium">No products found</p>
-              <p className="text-slate-500 mt-2">
-                {searchTerm || selectedCategory !== 'all' || statusFilter !== 'all'
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by adding your first product'}
-              </p>
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full blur-2xl opacity-60"></div>
+              <div className="relative p-6 bg-white rounded-2xl shadow-lg">
+                <Package className="w-16 h-16 text-slate-300" />
+              </div>
             </div>
-            <button
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">No products found</h3>
+            <p className="text-slate-500 text-center max-w-sm mb-8">
+              {searchTerm || selectedCategory !== 'all' || statusFilter !== 'all'
+                ? 'Try adjusting your search or filters to find what you\'re looking for'
+                : 'Get started by adding your first product to the catalog'}
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/admin/products/add')}
-              className="bg-slate-900 cursor-pointer text-white font-semibold px-6 py-3 rounded-lg shadow-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
-              aria-label="Add Your First Product"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold px-8 py-4 rounded-xl shadow-lg shadow-indigo-200 transition-all duration-300"
             >
+              <Plus size={20} />
               Add Your First Product
-            </button>
+            </motion.button>
           </motion.div>
         )}
       </div>
