@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { ChevronLeft, Minus, Plus, Heart, Truck, Shield, RotateCcw } from 'lucide-react';
 import ProductGallery from '@/components/ProductGallery';
 import { useCart } from '@/context/CartContext';
+import Footer from '@/components/Footer';
 
 // Interfaces matching your updated model
 interface ISizeOption {
@@ -214,11 +215,11 @@ export default function ProductDetailPage() {
   const discountPercentage = getDiscountPercentage();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50 mt-16">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
           {/* Product Gallery */}
-          <div className="lg:sticky lg:top-6">
+          <div className="lg:sticky lg:top-8 md:top-8">
             <ProductGallery 
               images={product.images || []} 
               title={product.title} 
@@ -510,6 +511,7 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </main>
+      <Footer/>
     </div>
   );
 }
